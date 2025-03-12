@@ -3,24 +3,27 @@ import pygame
 
 from pygame.locals import *
 
-from scripts.utils import load_image, load_images, debug
+from scripts.utils import load_image, load_images
 from scripts.entities import Deck, Button
 
 
 class Game:
     def __init__(self):
         pygame.init()
-        pygame.display.set_caption('card game')
+        pygame.display.set_caption('scoundrel')
         self.SCALE_FACTOR = 2
+
         self.DISPLAY_WIDTH = 400
-        self.SCREEN_WIDTH = self.DISPLAY_WIDTH * self.SCALE_FACTOR
         self.DISPLAY_HEIGHT = 300
+        self.display = pygame.Surface((self.DISPLAY_WIDTH, self.DISPLAY_HEIGHT))
+
+        self.SCREEN_WIDTH = self.DISPLAY_WIDTH * self.SCALE_FACTOR
         self.SCREEN_HEIGHT = self.DISPLAY_HEIGHT * self.SCALE_FACTOR
         self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
-        # additional surface to scale up assets 2X
-        self.display = pygame.Surface((self.DISPLAY_WIDTH, self.DISPLAY_HEIGHT))
+        
         self.clock = pygame.time.Clock()
-        self.font = pygame.font.Font('font/yoster.ttf', 12)
+        self.small_font = pygame.font.Font('font/yoster.ttf', 12)
+        self.large_font = pygame.font.Font('font/yoster.ttf', 24)
 
         self.assets = {
             'diamonds': load_images('diamonds'),
@@ -29,14 +32,14 @@ class Game:
             'spades': load_images('spades'),
             'back': load_image('card_back.png'),
             'no_cards': load_image('no_cards.png'),
+            'health_heart': load_image('health_heart.png')
         }
 
         self.deck = Deck([self.assets['clubs'], self.assets['diamonds'], self.assets['hearts'], self.assets['spades']])
         self.card = self.deck.draw()
-        self.inventory = Button((int(self.DISPLAY_WIDTH * 0.75), 20), self.font, 'Weapon', 'white')
-        self.inventory_offset_x = (self.inventory.rect.centerx - self.inventory.rect.left) * 2
-        print(self.inventory.rect.left)
+        self.weapon_text = Button((int(self.DISPLAY_WIDTH * 0.75), 20), self.small_font, 'Weapon', 'white')
         self.room_offset = 50
+        self.hp = 20
 
 
     def run(self):
@@ -51,6 +54,7 @@ class Game:
                         pygame.quit()
                         sys.exit()
                 if event.type == MOUSEBUTTONDOWN:
+                    # left click
                     if event.button == 1:
                         mx, my = pygame.mouse.get_pos()
                         if card_back_rect.collidepoint((mx // self.SCALE_FACTOR, my // self.SCALE_FACTOR)):
@@ -63,6 +67,7 @@ class Game:
 
             # update/render
             self.display.fill((0, 0, 0))
+            # draw from deck image and empty
             stack_pos = (self.DISPLAY_WIDTH // 2, 40)
             card_back_rect = self.assets['back'].get_rect(center=stack_pos)
             if len(self.deck.stack) == 0:
@@ -70,8 +75,17 @@ class Game:
             else:
                 self.display.blit(self.assets['back'], card_back_rect)
 
-            self.inventory.render(self.display)
-            pygame.draw.lines(self.display, (255, 255, 255), True, [(self.inventory.rect.centerx - self.inventory_offset_x, 10), (self.inventory.rect.centerx + self.inventory_offset_x, 10), (self.inventory.rect.centerx + self.inventory_offset_x, int(self.DISPLAY_HEIGHT * 0.4)), (self.inventory.rect.centerx - self.inventory_offset_x, int(self.DISPLAY_HEIGHT * 0.4))], 2)
+            # hearts
+            heart_pos = (40, 40)
+            self.display.blit(self.assets['health_heart'], self.assets['health_heart'].get_rect(center=heart_pos))
+            hp_display = Button((80, 40), self.large_font, str(self.hp), 'red')
+            hp_display.render(self.display)
+
+            # weapon slot
+            self.weapon_text.render(self.display)
+            box_offset = (self.weapon_text.rect.centerx - self.weapon_text.rect.left) * 2
+            text_center_x = self.weapon_text.rect.centerx
+            pygame.draw.lines(self.display, (255, 255, 255), True, [(text_center_x - box_offset, 10), (text_center_x + box_offset, 10), (text_center_x + box_offset, int(self.DISPLAY_HEIGHT * 0.4)), (text_center_x - box_offset, int(self.DISPLAY_HEIGHT * 0.4))], 2)
             
             if len(self.deck.drawn) == 4:
                 for card, pos in self.deck.drawn:
