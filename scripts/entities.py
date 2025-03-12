@@ -6,6 +6,7 @@ class Card:
         self.value = value
         self.suit = suit
         self.rect = None
+        self.pos = None
     
 
 class Deck:

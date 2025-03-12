@@ -36,8 +36,8 @@ class Game:
         }
 
         self.deck = Deck([self.assets['clubs'], self.assets['diamonds'], self.assets['hearts'], self.assets['spades']])
-        self.card = self.deck.draw()
         self.weapon_text = Button((int(self.DISPLAY_WIDTH * 0.75), 20), self.small_font, 'Weapon', 'white')
+        self.arena = []
         self.room_offset = 50
         self.hp = 20
 
@@ -56,14 +56,25 @@ class Game:
                 if event.type == MOUSEBUTTONDOWN:
                     # left click
                     if event.button == 1:
-                        mx, my = pygame.mouse.get_pos()
-                        if card_back_rect.collidepoint((mx // self.SCALE_FACTOR, my // self.SCALE_FACTOR)):
+                        mouse_pos = tuple(pos // self.SCALE_FACTOR for pos in pygame.mouse.get_pos())
+                        if card_back_rect.collidepoint(mouse_pos):
                             self.room_offset = 50
                             # draw cards until you have 4
                             while(len(self.deck.drawn) < 4):
                                 card = self.deck.draw()
-                                self.deck.drawn.append((card, (self.room_offset, int(self.DISPLAY_HEIGHT * 0.75))))
+                                card.pos = (self.room_offset, int(self.DISPLAY_HEIGHT * 0.75))
+                                self.deck.drawn.append(card)
                                 self.room_offset += 75
+                        else:
+                            for card in self.deck.drawn:
+                                if card.rect.collidepoint(mouse_pos):
+                                    if card.suit == self.deck.suits[1]:
+                                        if (len(self.arena) == 0):
+                                            card.rect.center = (self.weapon_text.rect.left, self.weapon_text.rect.top + 40)
+                                            self.arena.append(card)
+                                            # you have to remove the card from the drawn list or else it won't display properly!
+                                            self.deck.drawn.remove(card)
+
 
             # update/render
             self.display.fill((0, 0, 0))
@@ -86,16 +97,18 @@ class Game:
             box_offset = (self.weapon_text.rect.centerx - self.weapon_text.rect.left) * 2
             text_center_x = self.weapon_text.rect.centerx
             pygame.draw.lines(self.display, (255, 255, 255), True, [(text_center_x - box_offset, 10), (text_center_x + box_offset, 10), (text_center_x + box_offset, int(self.DISPLAY_HEIGHT * 0.4)), (text_center_x - box_offset, int(self.DISPLAY_HEIGHT * 0.4))], 2)
+            # show weapon card and monsters
+            for card in self.arena:
+                self.display.blit(card.img, card.rect)
             
-            if len(self.deck.drawn) == 4:
-                for card, pos in self.deck.drawn:
-                    card.rect = card.img.get_rect(center=pos)
-                    self.display.blit(card.img, card.rect)
+            for card in self.deck.drawn:
+                card.rect = card.img.get_rect(center=card.pos)
+                self.display.blit(card.img, card.rect)
 
             # debug(self.display, self.font, pygame.mouse.get_pos())
             # debug(self.display, self.font, (card_back_rect.topleft, card_back_rect.width, card_back_rect.height), 10, 40)     
                     
-            # have to blit the render display to the original screen size  
+            # have to blit the render display to the original screen size -- scale up 2x
             self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()), (0, 0))
             
             # print(pygame.mouse.get_pos())
