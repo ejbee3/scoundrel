@@ -1,8 +1,10 @@
 import random
+import pygame
 
-class Card:
-    def __init__(self, img, value, suit):
-        self.img = img
+class Card(pygame.sprite.Sprite):
+    def __init__(self, image, value, suit):
+        super().__init__()
+        self.image = image
         self.value = value
         self.suit = suit
         self.rect = None
@@ -12,7 +14,7 @@ class Card:
 class Deck:
     def __init__(self, card_imgs_by_suit):
         self.stack = []
-        self.discarded = []
+        self.discarded = 0
         self.drawn = []
         self.suits = ['clubs', 'diamonds', 'hearts', 'spades']
 

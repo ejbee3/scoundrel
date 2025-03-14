@@ -37,7 +37,10 @@ class Game:
 
         self.deck = Deck([self.assets['clubs'], self.assets['diamonds'], self.assets['hearts'], self.assets['spades']])
         self.weapon_text = Button((int(self.DISPLAY_WIDTH * 0.75), 20), self.small_font, 'Weapon', 'white')
-        self.arena = []
+        self.arena = {
+            'weapon': pygame.sprite.GroupSingle(),
+            'monsters': pygame.sprite.Group()
+        }
         self.room_offset = 50
         self.hp = 20
 
@@ -68,12 +71,30 @@ class Game:
                         else:
                             for card in self.deck.drawn:
                                 if card.rect.collidepoint(mouse_pos):
-                                    if card.suit == self.deck.suits[1]:
-                                        if (len(self.arena) == 0):
+                                    if not self.arena['weapon']:
+                                        if card.suit == self.deck.suits[1]:
                                             card.rect.center = (self.weapon_text.rect.left, self.weapon_text.rect.top + 40)
-                                            self.arena.append(card)
-                                            # you have to remove the card from the drawn list or else it won't display properly!
-                                            self.deck.drawn.remove(card)
+                                            self.arena['weapon'].add(card)
+                                        # fighting barehanded (take full damage)   
+                                        if card.suit == self.deck.suits[0] or card.suit == self.deck.suits[3]:
+                                            self.hp -= card.value
+                                            self.deck.discarded += 1
+                                    else:
+                                        if card.suit == self.deck.suits[1]:
+                                            card.rect.center = (self.weapon_text.rect.left, self.weapon_text.rect.top + 40)
+                                            self.arena['weapon'].add(card)
+                                            self.deck.discarded += len(self.arena['monsters']) + 1
+                                            self.arena['monsters'].empty()
+                                        if card.suit == self.deck.suits[0] or card.suit == self.deck.suits[3]:
+                                             # weapon already equipped, find offset amt
+                                            offset = len(self.arena['monsters']) + 1
+                                            wpn = self.arena['weapon'].sprite
+                                            card.rect.center = tuple(x + (7 * offset) for x in wpn.rect.center)
+                                            self.arena['monsters'].add(card)
+                                        
+                                    # you have to remove the card from the drawn list or else it won't display properly!  
+                                    self.deck.drawn.remove(card)
+
 
 
             # update/render
@@ -98,12 +119,17 @@ class Game:
             text_center_x = self.weapon_text.rect.centerx
             pygame.draw.lines(self.display, (255, 255, 255), True, [(text_center_x - box_offset, 10), (text_center_x + box_offset, 10), (text_center_x + box_offset, int(self.DISPLAY_HEIGHT * 0.4)), (text_center_x - box_offset, int(self.DISPLAY_HEIGHT * 0.4))], 2)
             # show weapon card and monsters
-            for card in self.arena:
-                self.display.blit(card.img, card.rect)
-            
+
+            if self.arena['weapon']:
+                self.arena['weapon'].draw(self.display)
+                
+            if len(self.arena['monsters']) > 0:
+                self.arena['monsters'].draw(self.display)
+
+                
             for card in self.deck.drawn:
-                card.rect = card.img.get_rect(center=card.pos)
-                self.display.blit(card.img, card.rect)
+                card.rect = card.image.get_rect(center=card.pos)
+                self.display.blit(card.image, card.rect)
 
             # debug(self.display, self.font, pygame.mouse.get_pos())
             # debug(self.display, self.font, (card_back_rect.topleft, card_back_rect.width, card_back_rect.height), 10, 40)     
