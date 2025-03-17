@@ -20,6 +20,8 @@ class Game:
         self.SCREEN_WIDTH = self.DISPLAY_WIDTH * self.SCALE_FACTOR
         self.SCREEN_HEIGHT = self.DISPLAY_HEIGHT * self.SCALE_FACTOR
         self.screen = pygame.display.set_mode((self.SCREEN_WIDTH, self.SCREEN_HEIGHT))
+
+        self.WHITE = (255, 255, 255)
         
         self.clock = pygame.time.Clock()
         self.small_font = pygame.font.Font('font/yoster.ttf', 12)
@@ -41,7 +43,10 @@ class Game:
             'weapon': pygame.sprite.GroupSingle(),
             'monsters': pygame.sprite.Group()
         }
-        self.room_offset = 50
+        self.keep = {
+            'kept_card': None,
+            'index': 0
+        }
         self.hp = 20
 
 
@@ -57,18 +62,42 @@ class Game:
                         pygame.quit()
                         sys.exit()
                 if event.type == MOUSEBUTTONDOWN:
+                    mouse_pos = tuple(pos // self.SCALE_FACTOR for pos in pygame.mouse.get_pos())
                     # left click
                     if event.button == 1:
-                        mouse_pos = tuple(pos // self.SCALE_FACTOR for pos in pygame.mouse.get_pos())
+                        # if clicking on deck
                         if card_back_rect.collidepoint(mouse_pos):
-                            self.room_offset = 50
+                            if len(self.deck.drawn) > 0:
+                                self.deck.drawn.clear()
+                            room_offset = 75
                             # draw cards until you have 4
-                            while(len(self.deck.drawn) < 4):
-                                card = self.deck.draw()
-                                card.pos = (self.room_offset, int(self.DISPLAY_HEIGHT * 0.75))
-                                self.deck.drawn.append(card)
-                                self.room_offset += 75
+                            i = 0
+                            kept = self.keep['kept_card']
+                            kept_i = self.keep['index']
+                            while(len(self.deck.drawn) != 4):
+                                if kept and i == kept_i:
+                                    kept.pos = (room_offset + (room_offset * i), int(self.DISPLAY_HEIGHT * 0.75))
+                                    self.deck.drawn.append(kept)
+                                else:
+                                    card = self.deck.draw()
+                                    card.pos = (room_offset + (room_offset * i), int(self.DISPLAY_HEIGHT * 0.75))
+                                    self.deck.drawn.append(card)
+                                i += 1
+                            if kept:
+                                for i, card in enumerate(self.deck.drawn):
+                                    if card.image == kept.image:
+                                        # swap positions
+                                        kept_el = self.deck.drawn[i]
+                                        swapped_el = self.deck.drawn[kept_i]
+                                        kept_el.pos = (room_offset + (room_offset * kept_i), int(self.DISPLAY_HEIGHT * 0.75))
+                                        swapped_el.pos = (room_offset + (room_offset * i), int(self.DISPLAY_HEIGHT * 0.75))
+                                        # swap positions in list
+                                        self.deck.drawn[i], self.deck.drawn[kept_i] = self.deck.drawn[kept_i], self.deck.drawn[i]
+                                        break
+                            self.keep['kept_card'] = None
+                            self.keep['index'] = 0       
                         else:
+                            # else you're clicking on cards
                             for card in self.deck.drawn:
                                 if card.rect.collidepoint(mouse_pos):
                                     if not self.arena['weapon']:
@@ -91,10 +120,23 @@ class Game:
                                             wpn = self.arena['weapon'].sprite
                                             card.rect.center = tuple(x + (7 * offset) for x in wpn.rect.center)
                                             self.arena['monsters'].add(card)
+                                            if wpn.value < card.value:
+                                                self.hp -= abs(wpn.value - card.value)
                                         
                                     # you have to remove the card from the drawn list or else it won't display properly!  
                                     self.deck.drawn.remove(card)
-
+                    # right click
+                    if event.button == 3:
+                        # keep mechanic
+                        if self.keep['kept_card']:
+                            self.keep['kept_card'] = None
+                            self.keep['index'] = 0  
+                        else:
+                            for i, card in enumerate(self.deck.drawn):
+                                if card.rect.collidepoint(mouse_pos):
+                                    # update keep with card and info
+                                    self.keep['kept_card'] = card
+                                    self.keep['index'] = i
 
 
             # update/render
@@ -117,18 +159,22 @@ class Game:
             self.weapon_text.render(self.display)
             box_offset = (self.weapon_text.rect.centerx - self.weapon_text.rect.left) * 2
             text_center_x = self.weapon_text.rect.centerx
-            pygame.draw.lines(self.display, (255, 255, 255), True, [(text_center_x - box_offset, 10), (text_center_x + box_offset, 10), (text_center_x + box_offset, int(self.DISPLAY_HEIGHT * 0.4)), (text_center_x - box_offset, int(self.DISPLAY_HEIGHT * 0.4))], 2)
+            pygame.draw.lines(self.display, self.WHITE, True, [(text_center_x - box_offset, 10), (text_center_x + box_offset, 10), (text_center_x + box_offset, int(self.DISPLAY_HEIGHT * 0.4)), (text_center_x - box_offset, int(self.DISPLAY_HEIGHT * 0.4))], 2)
             # show weapon card and monsters
-
             if self.arena['weapon']:
                 self.arena['weapon'].draw(self.display)
                 
             if len(self.arena['monsters']) > 0:
                 self.arena['monsters'].draw(self.display)
 
+            cards_left = Button((100, int(self.DISPLAY_HEIGHT // 3)), self.small_font, f'cards left: {len(self.deck.stack)}', 'white')
+            cards_left.render(self.display)
                 
             for card in self.deck.drawn:
                 card.rect = card.image.get_rect(center=card.pos)
+                kept = self.keep['kept_card']
+                if kept and kept.image == card.image:
+                    pygame.draw.lines(self.display, self.WHITE, True, [(card.rect.left - 1, card.rect.top - 1), (card.rect.right + 1, card.rect.top - 1), (card.rect.right + 1, card.rect.bottom + 1), (card.rect.left - 1, card.rect.bottom + 1)])
                 self.display.blit(card.image, card.rect)
 
             # debug(self.display, self.font, pygame.mouse.get_pos())
