@@ -14,7 +14,6 @@ class Card(pygame.sprite.Sprite):
 class Deck:
     def __init__(self, card_imgs_by_suit):
         self.stack = []
-        self.discarded = 0
         self.drawn = []
         self.suits = ['clubs', 'diamonds', 'hearts', 'spades']
 
