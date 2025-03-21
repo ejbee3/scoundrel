@@ -53,7 +53,8 @@ class Game:
             'counter': 3,
             'next_room_event': pygame.USEREVENT + 1,
             'is_counting': False,
-            'offset': 75
+            'offset': 75,
+            'has_healed': False
         }
         
         self.hp = 20
@@ -120,9 +121,11 @@ class Game:
                                     if card.rect.collidepoint(mouse_pos):
                                         # hearts
                                         if card.suit == self.deck.suits[2]:
-                                                self.hp += card.value
-                                                if self.hp > 20:
-                                                    self.hp = 20
+                                                if not self.room['has_healed']:
+                                                    self.hp += card.value
+                                                    if self.hp > 20:
+                                                        self.hp = 20
+                                                    self.room['has_healed'] = True
                                         if not self.arena['weapon']:
                                             if card.suit == self.deck.suits[1]:
                                                 card.rect.center = (self.weapon_text.rect.left, self.weapon_text.rect.top + 40)
@@ -157,13 +160,14 @@ class Game:
                          
             # update/render
             self.display.fill((0, 0, 0))
-            # check for one card left event
+            # check for one card left event and set up next room
             if len(self.deck.drawn) == 1 and not self.room['is_counting']:
                 kept_card = self.deck.drawn[0]
                 self.keep['kept_card'] = kept_card
                 self.keep['index'] = (kept_card.pos[0] // self.room['offset']) - 1
                 self.room['is_counting'] = True
                 self.skipped = 1
+                self.room['has_healed'] = False
                 pygame.time.set_timer(self.room['next_room_event'], 1000)
                 
             # draw from deck image and empty
