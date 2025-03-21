@@ -48,14 +48,17 @@ class Game:
             'index': 0
         }
         self.room = {
-            'static_text': Button((140, self.DISPLAY_HEIGHT // 2), self.large_font, 'making next room in ', 'white'),
-            'countdown': []
+            'static_text': Button((140, self.DISPLAY_HEIGHT // 2), self.large_font, 'making next room in', 'white'),
+            'num': '3',
+            'counter': 3,
+            'next_room_event': pygame.USEREVENT + 1,
+            'is_counting': False,
+            'offset': 75
         }
+        
         self.hp = 20
         self.defeated = 0
         self.skipped = 0
-        self.ONE_CARD_LEFT = pygame.USEREVENT + 1
-
 
 
     def run(self):
@@ -69,43 +72,47 @@ class Game:
                     if event.key == K_ESCAPE:
                         pygame.quit()
                         sys.exit()
-                if event.type == self.ONE_CARD_LEFT:
-                    for i in range(3):
-                        countdown_num = Button((self.room['static_text'].rect.right + 10, self.DISPLAY_HEIGHT // 2), self.large_font, str(3 - i), 'white')
-                        self.room['countdown'].append(countdown_num)
-                        
+                if event.type == self.room['next_room_event']:
+                    self.room['counter'] -= 1
+                    if self.room['counter'] > 0:
+                        self.room['num'] = str(self.room['counter'])
+                    else:
+                        self.room['is_counting'] = False
+                        self.room['counter'] = 3
+                        self.room['num'] = '3'
+                        pygame.time.set_timer(self.room['next_room_event'], 0)
+                        if len(self.deck.drawn) == 1:
+                            self.deck.drawn.clear()
+                        kept_index = self.keep['index']
+                        kept = self.keep['kept_card']   
+                        for i in range(4):
+                            if kept and i == kept_index:
+                                kept.pos = (self.room['offset'] + (self.room['offset'] * kept_index), int(self.DISPLAY_HEIGHT * 0.75))
+                                self.deck.drawn.append(kept)
+                            else:
+                                card = self.deck.draw()
+                                card.pos = (self.room['offset'] + (self.room['offset'] * i), int(self.DISPLAY_HEIGHT * 0.75))
+                                self.deck.drawn.append(card)
+
+
+
                 if event.type == MOUSEBUTTONDOWN:
                     mouse_pos = tuple(pos // self.SCALE_FACTOR for pos in pygame.mouse.get_pos())
-                    room_offset = 75
                     # left click
                     if event.button == 1:
                         # if clicking on deck
                         if card_back_rect.collidepoint(mouse_pos):
-                            if len(self.deck.drawn) > 0:
-                                self.deck.drawn.clear()
-                            # draw cards until you have 4
-                            kept = self.keep['kept_card']
-                            if kept:
-                                kept_index = self.keep['index']
-                                kept.pos = (room_offset, int(self.DISPLAY_HEIGHT * 0.75))
-                                self.deck.drawn.append(kept)
-                                for i in range(1, 4):
-                                    card = self.deck.draw()
-                                    card.pos = (room_offset + (room_offset * i), int(self.DISPLAY_HEIGHT * 0.75))
-                                    self.deck.drawn.append(card)
-                                # kept_index = self.keep['index']
-                                # print(kept_index)
-                                if kept_index != 0:
-                                    kept_card = self.deck.drawn[0]
-                                    kept_card.pos = (room_offset + (room_offset * kept_index), int(self.DISPLAY_HEIGHT * 0.75))
-                                    swapped_card = self.deck.drawn[kept_index]
-                                    swapped_card.pos = (room_offset, int(self.DISPLAY_HEIGHT * 0.75))
-                                    kept_card, swapped_card = swapped_card, kept_card
-                            else:
+                            self.skipped += 1
+                            if self.skipped <= 2:
+                                while(len(self.deck.drawn) > 0):
+                                    card = self.deck.drawn.pop()
+                                    card.rect = None
+                                    card.pos = None
+                                    self.deck.stack.insert(0, card)
                                 for i in range(4):
                                     card = self.deck.draw()
-                                    card.pos = (room_offset + (room_offset * i), int(self.DISPLAY_HEIGHT * 0.75))
-                                    self.deck.drawn.append(card)      
+                                    card.pos = (self.room['offset'] + (self.room['offset'] * i), int(self.DISPLAY_HEIGHT * 0.75))
+                                    self.deck.drawn.append(card)     
                         else:
                             # else you're clicking on cards
                             if len(self.deck.drawn) > 0:
@@ -147,41 +154,18 @@ class Game:
                                                     self.defeated += 1
                                         # you have to remove the card from the drawn list or else it won't display properly!  
                                         self.deck.drawn.remove(card)
-                    # right click
-                    if event.button == 3:
-                        if card_back_rect.collidepoint(mouse_pos):
-                            self.skipped += 1
-                            if self.skipped <= 2:
-                                while(len(self.deck.drawn) > 0):
-                                    card = self.deck.drawn.pop()
-                                    card.rect = None
-                                    card.pos = None
-                                    self.deck.stack.insert(0, card)
-                                for i in range(4):
-                                    card = self.deck.draw()
-                                    card.pos = (room_offset + (room_offset * i), int(self.DISPLAY_HEIGHT * 0.75))
-                                    self.deck.drawn.append(card)
-                        # keep mechanic
-                        else:
-                            for i, card in enumerate(self.deck.drawn):
-                                if card.rect.collidepoint(mouse_pos):
-                                    if self.keep['kept_card']:
-                                        self.keep['kept_card'] = None
-                                        self.keep['index'] = 0
-                                    else:
-                                        self.keep['kept_card'] = card
-                                        self.keep['index'] = (card.pos[0] // room_offset) - 1
-                                    
-                                    
-                                    
-
-
+                         
             # update/render
             self.display.fill((0, 0, 0))
             # check for one card left event
-            if len(self.deck.drawn) == 1:
-                one_card_left = pygame.event.Event(self.ONE_CARD_LEFT)
-                pygame.event.post(one_card_left)
+            if len(self.deck.drawn) == 1 and not self.room['is_counting']:
+                kept_card = self.deck.drawn[0]
+                self.keep['kept_card'] = kept_card
+                self.keep['index'] = (kept_card.pos[0] // self.room['offset']) - 1
+                self.room['is_counting'] = True
+                self.skipped = 1
+                pygame.time.set_timer(self.room['next_room_event'], 1000)
+                
             # draw from deck image and empty
             stack_pos = (self.DISPLAY_WIDTH // 2, 40)
             card_back_rect = self.assets['back'].get_rect(center=stack_pos)
@@ -218,15 +202,11 @@ class Game:
                 
             for card in self.deck.drawn:
                 card.rect = card.image.get_rect(center=card.pos)
-                if self.keep['kept_card'] and card.image == self.keep['kept_card'].image:
-                    pygame.draw.lines(self.display, self.WHITE, True, [(card.rect.left - 1, card.rect.top - 1), (card.rect.right + 1, card.rect.top - 1), (card.rect.right + 1, card.rect.bottom + 1), (card.rect.left - 1, card.rect.bottom + 1)])
                 self.display.blit(card.image, card.rect)
             
-            if len(self.deck.drawn) == 1:
+            if self.room['is_counting']:
                 self.room['static_text'].render(self.display)
-                countdown = self.room['countdown']
-                if len(countdown) > 0:
-                    self.room['countdown'][0].render(self.display)
+                self.display.blit(self.large_font.render(self.room['num'], True, (255, 255, 255)), (self.room['static_text'].rect.right + 7, self.room['static_text'].rect.top))
 
             # debug(self.display, self.small_font, pygame.mouse.get_pos())
             # debug(self.display, self.font, (card_back_rect.topleft, card_back_rect.width, card_back_rect.height), 10, 40)     
