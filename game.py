@@ -56,7 +56,13 @@ class Game:
             'offset': 75,
             'has_healed': False
         }
-        
+
+        self.game_over_event = pygame.USEREVENT + 2
+        self.game_over = {
+            'text_x': (self.DISPLAY_WIDTH // 2) - 5,
+            'text_y': self.DISPLAY_HEIGHT // 4,
+            'show': False
+        }
         self.hp = 20
         self.defeated = 0
         self.skipped = 0
@@ -73,6 +79,10 @@ class Game:
                     if event.key == K_ESCAPE:
                         pygame.quit()
                         sys.exit()
+                if event.type == self.game_over_event:
+                    self.game_over['show'] = True
+                    game_over_text = Button((event.text_x, event.text_y), self.large_font, 'GAME OVER', 'white')
+
                 if event.type == self.room['next_room_event']:
                     self.room['counter'] -= 1
                     if self.room['counter'] > 0:
@@ -160,65 +170,71 @@ class Game:
                          
             # update/render
             self.display.fill((0, 0, 0))
-            # check for one card left event and set up next room
-            if len(self.deck.drawn) == 1 and not self.room['is_counting']:
-                kept_card = self.deck.drawn[0]
-                self.keep['kept_card'] = kept_card
-                self.keep['index'] = (kept_card.pos[0] // self.room['offset']) - 1
-                self.room['is_counting'] = True
-                self.skipped = 1
-                self.room['has_healed'] = False
-                pygame.time.set_timer(self.room['next_room_event'], 1000)
-                
-            # draw from deck image and empty
-            stack_pos = (self.DISPLAY_WIDTH // 2, 40)
-            card_back_rect = self.assets['back'].get_rect(center=stack_pos)
-            if len(self.deck.stack) == 0:
-                self.display.blit(self.assets['no_cards'], self.assets['no_cards'].get_rect(center=stack_pos))
+            # check if game over
+            if self.hp <= 0 and self.game_over['show']:
+                game_over_text.render(self.display)
+            elif self.hp <= 0:
+                game_over = pygame.event.Event(self.game_over_event, self.game_over)
+                pygame.event.post(game_over)
             else:
-                self.display.blit(self.assets['back'], card_back_rect)
+                # check for one card left event and set up next room
+                if len(self.deck.drawn) == 1 and not self.room['is_counting']:
+                    kept_card = self.deck.drawn[0]
+                    self.keep['kept_card'] = kept_card
+                    self.keep['index'] = (kept_card.pos[0] // self.room['offset']) - 1
+                    self.room['is_counting'] = True
+                    self.skipped = 1
+                    self.room['has_healed'] = False
+                    pygame.time.set_timer(self.room['next_room_event'], 1000)
+                    
+                # draw from deck image and empty
+                stack_pos = (self.DISPLAY_WIDTH // 2, 40)
+                card_back_rect = self.assets['back'].get_rect(center=stack_pos)
+                if len(self.deck.stack) == 0:
+                    self.display.blit(self.assets['no_cards'], self.assets['no_cards'].get_rect(center=stack_pos))
+                else:
+                    self.display.blit(self.assets['back'], card_back_rect)
 
-            # hearts
-            heart_pos = (40, 40)
-            self.display.blit(self.assets['health_heart'], self.assets['health_heart'].get_rect(center=heart_pos))
-            hp_display = Button((80, 40), self.large_font, str(self.hp), 'red')
-            hp_display.render(self.display)
+                # hearts
+                heart_pos = (40, 40)
+                self.display.blit(self.assets['health_heart'], self.assets['health_heart'].get_rect(center=heart_pos))
+                hp_display = Button((80, 40), self.large_font, str(self.hp), 'red')
+                hp_display.render(self.display)
 
-            # weapon slot
-            self.weapon_text.render(self.display)
-            box_offset = (self.weapon_text.rect.centerx - self.weapon_text.rect.left) * 2
-            text_center_x = self.weapon_text.rect.centerx
-            pygame.draw.lines(self.display, self.WHITE, True, [(text_center_x - box_offset, 10), (text_center_x + box_offset, 10), (text_center_x + box_offset, int(self.DISPLAY_HEIGHT * 0.4)), (text_center_x - box_offset, int(self.DISPLAY_HEIGHT * 0.4))], 2)
-            # show weapon card and monsters
-            if self.arena['weapon']:
-                self.arena['weapon'].draw(self.display)
+                # weapon slot
+                self.weapon_text.render(self.display)
+                box_offset = (self.weapon_text.rect.centerx - self.weapon_text.rect.left) * 2
+                text_center_x = self.weapon_text.rect.centerx
+                pygame.draw.lines(self.display, self.WHITE, True, [(text_center_x - box_offset, 10), (text_center_x + box_offset, 10), (text_center_x + box_offset, int(self.DISPLAY_HEIGHT * 0.4)), (text_center_x - box_offset, int(self.DISPLAY_HEIGHT * 0.4))], 2)
+                # show weapon card and monsters
+                if self.arena['weapon']:
+                    self.arena['weapon'].draw(self.display)
+                    
+                if len(self.arena['monsters']) > 0:
+                    for monster in self.arena['monsters']:
+                        self.display.blit(monster.image, monster.rect)
+                    
+
+                cards_left = Button((100, int(self.DISPLAY_HEIGHT // 4)), self.small_font, f'cards left: {len(self.deck.stack)}', 'white')
+                cards_left.render(self.display)
+
+                monsters_slain = Button((100, int(self.DISPLAY_HEIGHT // 3)), self.small_font, f'monsters slain: {self.defeated}', 'white')
+                monsters_slain.render(self.display)
+                    
+                for card in self.deck.drawn:
+                    card.rect = card.image.get_rect(center=card.pos)
+                    self.display.blit(card.image, card.rect)
                 
-            if len(self.arena['monsters']) > 0:
-                for monster in self.arena['monsters']:
-                    self.display.blit(monster.image, monster.rect)
-                
+                if self.room['is_counting']:
+                    self.room['static_text'].render(self.display)
+                    self.display.blit(self.large_font.render(self.room['num'], True, (255, 255, 255)), (self.room['static_text'].rect.right + 7, self.room['static_text'].rect.top))
 
-            cards_left = Button((100, int(self.DISPLAY_HEIGHT // 4)), self.small_font, f'cards left: {len(self.deck.stack)}', 'white')
-            cards_left.render(self.display)
-
-            monsters_slain = Button((100, int(self.DISPLAY_HEIGHT // 3)), self.small_font, f'monsters slain: {self.defeated}', 'white')
-            monsters_slain.render(self.display)
-                
-            for card in self.deck.drawn:
-                card.rect = card.image.get_rect(center=card.pos)
-                self.display.blit(card.image, card.rect)
             
-            if self.room['is_counting']:
-                self.room['static_text'].render(self.display)
-                self.display.blit(self.large_font.render(self.room['num'], True, (255, 255, 255)), (self.room['static_text'].rect.right + 7, self.room['static_text'].rect.top))
-
-            # debug(self.display, self.small_font, pygame.mouse.get_pos())
             # debug(self.display, self.font, (card_back_rect.topleft, card_back_rect.width, card_back_rect.height), 10, 40)     
                     
             # have to blit the render display to the original screen size -- scale up 2x
             self.screen.blit(pygame.transform.scale(self.display, self.screen.get_size()), (0, 0))
             
-            # print(pygame.mouse.get_pos())
             pygame.display.update()
             # for simplicity, we won't use deltatime
             self.clock.tick(60)
