@@ -36,7 +36,6 @@ class Game:
             'no_cards': load_image('no_cards.png'),
             'health_heart': load_image('health_heart.png')
         }
-
         self.deck = Deck([self.assets['clubs'], self.assets['diamonds'], self.assets['hearts'], self.assets['spades']])
         self.weapon_text = Button((int(self.DISPLAY_WIDTH * 0.75), 20), self.small_font, 'Weapon', 'white')
         self.arena = {
@@ -56,7 +55,6 @@ class Game:
             'offset': 75,
             'has_healed': False
         }
-
         self.game_over_event = pygame.USEREVENT + 2
         self.game_over = {
             'text_x': (self.DISPLAY_WIDTH // 2) - 5,
@@ -82,7 +80,6 @@ class Game:
                 if event.type == self.game_over_event:
                     self.game_over['show'] = True
                     game_over_text = Button((event.text_x, event.text_y), self.large_font, 'GAME OVER', 'white')
-
                 if event.type == self.room['next_room_event']:
                     self.room['counter'] -= 1
                     if self.room['counter'] > 0:
@@ -104,9 +101,6 @@ class Game:
                                 card = self.deck.draw()
                                 card.pos = (self.room['offset'] + (self.room['offset'] * i), int(self.DISPLAY_HEIGHT * 0.75))
                                 self.deck.drawn.append(card)
-
-
-
                 if event.type == MOUSEBUTTONDOWN:
                     mouse_pos = tuple(pos // self.SCALE_FACTOR for pos in pygame.mouse.get_pos())
                     # left click
@@ -215,7 +209,7 @@ class Game:
                         self.display.blit(monster.image, monster.rect)
                     
 
-                cards_left = Button((100, int(self.DISPLAY_HEIGHT // 4)), self.small_font, f'cards left: {len(self.deck.stack)}', 'white')
+                cards_left = Button((100, int(self.DISPLAY_HEIGHT // 4)), self.small_font, f'cards left: {len(self.deck.stack) + len(self.deck.drawn)}', 'white')
                 cards_left.render(self.display)
 
                 monsters_slain = Button((100, int(self.DISPLAY_HEIGHT // 3)), self.small_font, f'monsters slain: {self.defeated}', 'white')

@@ -18,8 +18,12 @@ class Deck:
         self.suits = ['clubs', 'diamonds', 'hearts', 'spades']
 
         for i in range(len(self.suits)):
-            for j in range(2, 11):
-                self.stack.append(Card(card_imgs_by_suit[i][j - 2], j, self.suits[i]))
+            if self.suits[i] == 'clubs' or self.suits[i] == 'spades':
+                for j in range(2, 15):
+                    self.stack.append(Card(card_imgs_by_suit[i][j - 2], j, self.suits[i]))
+            else:
+                for j in range(2, 11):
+                    self.stack.append(Card(card_imgs_by_suit[i][j - 2], j, self.suits[i]))
 
         random.shuffle(self.stack)
 
